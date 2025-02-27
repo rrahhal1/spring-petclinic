@@ -153,7 +153,7 @@ command.install() {
   git config user.email "openshift-pipelines@redhat.com"
   git config user.name "openshift-pipelines"
   cat .tekton/build.yaml | grep -A 2 GIT_REPOSITORY
-  cross_sed "s#https://github.com/siamaksade/spring-petclinic-config#https://$GITEA_HOSTNAME/gitea/spring-petclinic-config#g" .tekton/build.yaml
+  cross_sed "s#https://github.com/rrahhal1/spring-petclinic-config#https://$GITEA_HOSTNAME/gitea/spring-petclinic-config#g" .tekton/build.yaml
   cat .tekton/build.yaml | grep -A 2 GIT_REPOSITORY
   git status
   git add .tekton/build.yaml
