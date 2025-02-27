@@ -58,7 +58,7 @@ spec:
             print("Created admin user {}:{}".format(gitea_user, gitea_pwd))
 
           # create git repo spring-petclinic
-          data_repo = '{"clone_addr": "https://github.com/siamaksade/spring-petclinic-pac", "uid": 1, "repo_name": "spring-petclinic"}'
+          data_repo = '{"clone_addr": "https://github.com/rrahhal1/spring-petclinic-pac", "uid": 1, "repo_name": "spring-petclinic"}'
           headers = {'Content-Type': 'application/json'}
           resp = requests.post(url = giteaURL + "/api/v1/repos/migrate", headers = headers, auth = (gitea_user, gitea_pwd), data = data_repo)  
 
