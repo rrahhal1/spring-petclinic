@@ -2,7 +2,7 @@ resources:
 - argocd.yaml
 - argocd-petclinic-project.yaml
 - argocd-app-dev.yaml
-- argocd-app-stage.yaml
+- argocd-app-uat.yaml
 - argocd-app-prod.yaml
 
 patchesStrategicMerge:
