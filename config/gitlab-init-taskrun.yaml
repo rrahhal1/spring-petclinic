@@ -42,16 +42,22 @@ spec:
           "Content-Type": "application/json"
         }
 
+                def get_project_id(name):
+          encoded_name = urllib.parse.quote(f"{user}/{name}", safe='')
+          r = requests.get(f"{url}/api/v4/projects/{encoded_name}", headers=headers)
+          if r.status_code == 200:
+            print(f"Project {name} already exists.")
+            return r.json()["id"]
+          return None
+
         def create_project(name, repo_url=None):
+          existing_id = get_project_id(name)
+          if existing_id:
+            return existing_id  # Use the existing project
           payload = { "name": name }
           if repo_url:
-            payload = {
-              "name": name,
-              "import_url": repo_url
-            }
-            r = requests.post(f"{url}/api/v4/projects", headers=headers, json=payload)
-          else:
-            r = requests.post(f"{url}/api/v4/projects", headers=headers, json=payload)
+            payload["import_url"] = repo_url
+          r = requests.post(f"{url}/api/v4/projects", headers=headers, json=payload)
           if r.status_code not in [200, 201]:
             print(f"Failed to create project {name}: {r.status_code}")
             print(r.text)
@@ -79,16 +85,16 @@ spec:
           else:
             print("Webhook configured.")
 
-        # Create 'spring-petclinic'
+        # Project 1: spring-petclinic
         petclinic_id = create_project("spring-petclinic", "https://gitlab.com/rearahhal/spring-petclinic-pac.git")
         if petclinic_id:
           set_default_branch(petclinic_id, "cicd-demo")
           add_webhook(petclinic_id)
 
-        # Create 'spring-petclinic-config'
+        # Project 2: spring-petclinic-config
         config_id = create_project("spring-petclinic-config", "https://github.com/rrahhal1/spring-petclinic-config.git")
         if config_id:
           add_webhook(config_id)
 
-        # Save token as a secret
+        # Save GitLab token to secret (optional)
         os.system(f'oc create secret generic gitlab --from-literal=token={token} --from-literal=webhook=""')
