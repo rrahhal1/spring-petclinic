@@ -30,7 +30,7 @@ spec:
         #!/usr/bin/env python3
         import requests
         import os
-        import json
+        import urllib.parse  # ✅ Needed for URL encoding
 
         user = "$(params.GITLAB_USER)"
         token = "$(params.GITLAB_TOKEN)"
@@ -42,7 +42,7 @@ spec:
           "Content-Type": "application/json"
         }
 
-                def get_project_id(name):
+        def get_project_id(name):
           encoded_name = urllib.parse.quote(f"{user}/{name}", safe='')
           r = requests.get(f"{url}/api/v4/projects/{encoded_name}", headers=headers)
           if r.status_code == 200:
