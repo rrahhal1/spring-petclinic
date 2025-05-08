@@ -45,6 +45,7 @@ spec:
           "Content-Type": "application/json"
         }
 
+        print(f"## Token: {token} ##")
         def get_project_id(name):
           encoded_name = urllib.parse.quote(f"{user}/{name}", safe='')
           r = requests.get(f"{url}/api/v4/projects/{encoded_name}", headers=headers)
