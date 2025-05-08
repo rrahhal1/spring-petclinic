@@ -10,7 +10,6 @@ spec:
       default: rearahhal
     - name: GITLAB_TOKEN
       type: string
-      default: openshift
     - name: GITLAB_URL
       type: string
       default: https://gitlab.com
@@ -30,7 +29,7 @@ spec:
         #!/usr/bin/env python3
         import requests
         import os
-        import urllib.parse  # ✅ Needed for URL encoding
+        import urllib.parse
 
         user = "$(params.GITLAB_USER)"
         token = "$(params.GITLAB_TOKEN)"
@@ -53,7 +52,7 @@ spec:
         def create_project(name, repo_url=None):
           existing_id = get_project_id(name)
           if existing_id:
-            return existing_id  # Use the existing project
+            return existing_id
           payload = { "name": name }
           if repo_url:
             payload["import_url"] = repo_url
@@ -85,16 +84,17 @@ spec:
           else:
             print("Webhook configured.")
 
-        # Project 1: spring-petclinic
         petclinic_id = create_project("spring-petclinic", "https://gitlab.com/rearahhal/spring-petclinic-pac.git")
         if petclinic_id:
           set_default_branch(petclinic_id, "cicd-demo")
           add_webhook(petclinic_id)
 
-        # Project 2: spring-petclinic-config
         config_id = create_project("spring-petclinic-config", "https://github.com/rrahhal1/spring-petclinic-config.git")
         if config_id:
           add_webhook(config_id)
-
-        # Save GitLab token to secret (optional)
-        os.system(f'oc create secret generic gitlab --from-literal=token={token} --from-literal=webhook=""')
+  params:
+  - name: GITLAB_TOKEN
+    valueFrom:
+      secretKeyRef:
+        name: git-auth-secret
+        key: token
