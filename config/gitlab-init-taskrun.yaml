@@ -10,7 +10,7 @@ spec:
       default: rearahhal
     - name: GITLAB_URL
       type: string
-      default: https://gitlab.com
+      default: "@gitea-url@"
     - name: WEBHOOK_URL
       type: string
       default: "@webhook-url@"
