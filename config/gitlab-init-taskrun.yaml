@@ -1,0 +1,94 @@
+apiVersion: tekton.dev/v1beta1
+kind: TaskRun
+metadata:
+  generateName: init-gitlab-
+spec:
+  taskSpec:
+    params:
+    - name: GITLAB_USER
+      type: string
+      default: rearahhal
+    - name: GITLAB_TOKEN
+      type: string
+      default: openshift
+    - name: GITLAB_URL
+      type: string
+      default: https://gitlab.com
+    - name: WEBHOOK_URL
+      type: string
+      default: "@webhook-url@"
+    stepTemplate:
+      env:
+      - name: NAMESPACE
+        valueFrom:
+          fieldRef:
+            fieldPath: metadata.namespace
+    steps:
+    - name: init-gitlab
+      image: quay.io/siamaksade/python-oc
+      script: |
+        #!/usr/bin/env python3
+        import requests
+        import os
+        import json
+
+        user = "$(params.GITLAB_USER)"
+        token = "$(params.GITLAB_TOKEN)"
+        url = "$(params.GITLAB_URL)"
+        webhook_url = "$(params.WEBHOOK_URL)"
+
+        headers = {
+          "PRIVATE-TOKEN": token,
+          "Content-Type": "application/json"
+        }
+
+        def create_project(name, repo_url=None):
+          payload = { "name": name }
+          if repo_url:
+            payload = {
+              "name": name,
+              "import_url": repo_url
+            }
+            r = requests.post(f"{url}/api/v4/projects", headers=headers, json=payload)
+          else:
+            r = requests.post(f"{url}/api/v4/projects", headers=headers, json=payload)
+          if r.status_code not in [200, 201]:
+            print(f"Failed to create project {name}: {r.status_code}")
+            print(r.text)
+            return None
+          print(f"Created project: {name}")
+          return r.json()["id"]
+
+        def set_default_branch(project_id, branch):
+          r = requests.put(f"{url}/api/v4/projects/{project_id}", headers=headers, json={"default_branch": branch})
+          if r.status_code not in [200, 201]:
+            print(f"Failed to set default branch: {r.status_code}")
+            print(r.text)
+
+        def add_webhook(project_id):
+          data = {
+            "url": webhook_url,
+            "push_events": True,
+            "merge_requests_events": True,
+            "note_events": True
+          }
+          r = requests.post(f"{url}/api/v4/projects/{project_id}/hooks", headers=headers, json=data)
+          if r.status_code not in [200, 201]:
+            print(f"Failed to configure webhook: {r.status_code}")
+            print(r.text)
+          else:
+            print("Webhook configured.")
+
+        # Create 'spring-petclinic'
+        petclinic_id = create_project("spring-petclinic", "https://github.com/rrahhal1/spring-petclinic-pac.git")
+        if petclinic_id:
+          set_default_branch(petclinic_id, "cicd-demo")
+          add_webhook(petclinic_id)
+
+        # Create 'spring-petclinic-config'
+        config_id = create_project("spring-petclinic-config", "https://github.com/rrahhal1/spring-petclinic-config.git")
+        if config_id:
+          add_webhook(config_id)
+
+        # Save token as a secret
+        os.system(f'oc create secret generic gitlab --from-literal=token={token} --from-literal=webhook=""')
