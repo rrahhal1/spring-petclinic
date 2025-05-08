@@ -1,0 +1,51 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gitlab-values
+data:
+  values.yaml: |
+    global:
+      hosts:
+        domain: apps-crc.testing
+        gitlab:
+          name: null
+        https: false
+      ingress:
+        tls:
+          enabled: false
+      edition: ce
+      nginx:
+        redirectHttpToHttps: false
+
+    gitlab:
+      enabled: true
+      migrations:
+        initialRootPassword: {}
+      webservice:
+        externalPort: 80
+      gitaly:
+        persistence:
+          storageClass: standard  # adjust to your PVC setup
+      gitlab-shell:
+        service:
+          externalPort: 22
+
+    redis:
+      install: true
+      master:
+        install: true
+      replica:
+        install: false
+
+    postgresql:
+      install: true
+
+    nginx-ingress:
+      controller:
+        enabled: false
+
+    prometheus:
+      install: false
+
+    registry:
+      enabled: false
