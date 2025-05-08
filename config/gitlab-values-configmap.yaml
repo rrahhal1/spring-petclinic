@@ -49,3 +49,5 @@ data:
 
     registry:
       enabled: false
+      
+    gitlab-url: "@gitlab-url@"
