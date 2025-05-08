@@ -8,7 +8,7 @@ data:
       hosts:
         domain: apps-crc.testing
         gitlab:
-          name: null
+          name: @HOSTNAME
         https: false
       ingress:
         tls:
