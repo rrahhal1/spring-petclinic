@@ -8,8 +8,6 @@ spec:
     - name: GITLAB_USER
       type: string
       default: rearahhal
-    - name: GITLAB_TOKEN
-      type: string
     - name: GITLAB_URL
       type: string
       default: https://gitlab.com
@@ -25,6 +23,12 @@ spec:
     steps:
     - name: init-gitlab
       image: quay.io/siamaksade/python-oc
+      env:
+      - name: GITLAB_TOKEN
+        valueFrom:
+          secretKeyRef:
+            name: git-auth-secret
+            key: token
       script: |
         #!/usr/bin/env python3
         import requests
@@ -32,7 +36,7 @@ spec:
         import urllib.parse
 
         user = "$(params.GITLAB_USER)"
-        token = "$(params.GITLAB_TOKEN)"
+        token = os.environ.get("GITLAB_TOKEN")
         url = "$(params.GITLAB_URL)"
         webhook_url = "$(params.WEBHOOK_URL)"
 
@@ -92,9 +96,3 @@ spec:
         config_id = create_project("spring-petclinic-config", "https://github.com/rrahhal1/spring-petclinic-config.git")
         if config_id:
           add_webhook(config_id)
-  params:
-  - name: GITLAB_TOKEN
-    valueFrom:
-      secretKeyRef:
-        name: git-auth-secret
-        key: token
