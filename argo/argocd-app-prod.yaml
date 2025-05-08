@@ -4,12 +4,12 @@ metadata:
   name: prod-spring-petclinic
 spec:
   destination:
-    namespace: demo-prod
+    namespace: prod
     server: https://kubernetes.default.svc
   project: spring-petclinic
   source:
     path: environments/prod
-    repoURL: https://github.com/siamaksade/spring-petclinic-config
+    repoURL: https://github.com/rrahhal1/spring-petclinic-config
     targetRevision: HEAD
   syncPolicy:
     automated:
