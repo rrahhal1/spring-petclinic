@@ -2,13 +2,27 @@ global:
   hosts:
     domain: apps-crc.testing
     gitlab:
-      name: null           # GitLab will use a generated name like gitlab.example.local
-    https: false           # Keep false unless you have TLS
+      name: null
+    https: false
+  ingress:
+    tls:
+      enabled: false
   edition: ce
+  nginx:
+    redirectHttpToHttps: false
 
-# Use built-in PostgreSQL and Redis
-postgresql:
-  install: true
+gitlab:
+  enabled: true
+  migrations:
+    initialRootPassword: {}
+  webservice:
+    externalPort: 80
+  gitaly:
+    persistence:
+      storageClass: standard  # adjust to your PVC setup
+  gitlab-shell:
+    service:
+      externalPort: 22
 
 redis:
   install: true
@@ -17,18 +31,15 @@ redis:
   replica:
     install: false
 
+postgresql:
+  install: true
+
 nginx-ingress:
   controller:
-    enabled: true
-    ingressClass: nginx
+    enabled: false
 
 prometheus:
   install: false
-
-gitlab:
-  enabled: true
-  migrations:
-    initialRootPassword: {}
 
 registry:
   enabled: false
