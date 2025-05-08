@@ -194,6 +194,8 @@ oc get configmap gitlab-values -o jsonpath='{.data.gitlab-init-taskrun\.yaml}' |
   TASKRUN_NAME=$(oc get taskrun -n $cicd_prj -o jsonpath="{.items[0].metadata.name}")
   GITLAB_TOKEN=$(oc logs $TASKRUN_NAME-pod -n $cicd_prj | grep Token | sed 's/^## Token: \(.*\) ##$/\1/g')
 
+export GITLAB_TOKEN="GITLAB_TOKEN_VALUE"
+
 cat << EOF > /tmp/tmp-pac-repository.yaml
 ---
 apiVersion: "pipelinesascode.tekton.dev/v1alpha1"
@@ -204,7 +206,7 @@ metadata:
 spec:
   url: https://$GITLAB_HOSTNAME/rearahhal/spring-petclinic
   git_provider:
-    user: git
+    user: rearahhal
     url: https://$GITLAB_HOSTNAME
     secret:
       name: "rearahhal"
