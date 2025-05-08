@@ -1,11 +1,12 @@
 global:
   hosts:
-    domain: apps.ocb.blf.com
+    domain: apps-crc.testing
     gitlab:
-      name: gitlab.apps.ocb.blf.com
-    https: false
+      name: null           # GitLab will use a generated name like gitlab.example.local
+    https: false           # Keep false unless you have TLS
   edition: ce
 
+# Use built-in PostgreSQL and Redis
 postgresql:
   install: true
 
@@ -27,9 +28,7 @@ prometheus:
 gitlab:
   enabled: true
   migrations:
-    # No initial root password secret; assume existing user handles auth
     initialRootPassword: {}
 
 registry:
   enabled: false
-
