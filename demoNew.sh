@@ -132,7 +132,7 @@ command.install() {
 
   info "Deploying CI/CD infra to $cicd_prj namespace"
   oc apply -f infra -n $cicd_prj
-  GITLAB_HOSTNAME=$(oc get route rearahhal -o template --template='{{.spec.host}}' -n $cicd_prj)
+  GITLAB_HOSTNAME=$(oc get route gitlab -o template --template='{{.spec.host}}' -n $cicd_prj)
 
   info "Initiatlizing git repository in Gitea and configuring webhooks"
   WEBHOOK_URL=$(oc get route pipelines-as-code-controller -n pipelines-as-code -o template --template="{{.spec.host}}"  --ignore-not-found)
@@ -142,7 +142,7 @@ command.install() {
 
   sed "s/@HOSTNAME/$GITLAB_HOSTNAME/g" config/values.yaml | oc create -f - -n $cicd_prj
   oc rollout status deployment/rearahhal -n $cicd_prj
-  sed "s#@webhook-url@#https://$WEBHOOK_URL#g" config/rearahhal-init-taskrun.yaml | sed "s#@rearahhal-url@#https://$GITLAB_HOSTNAME#g" |  oc create -f - -n $cicd_prj
+  sed "s#@webhook-url@#https://$WEBHOOK_URL#g" config/gitlab-init-taskrun.yaml | sed "s#@rearahhal-url@#https://$GITLAB_HOSTNAME#g" |  oc create -f - -n $cicd_prj
 
 
   wait_seconds 20
@@ -290,7 +290,7 @@ EOF
 }
 
 command.start() {
-  GITLAB_HOSTNAME=$(oc get route rearahhal -o template --template='{{.spec.host}}' -n $cicd_prj)
+  GITLAB_HOSTNAME=$(oc get route gitlab -o template --template='{{.spec.host}}' -n $cicd_prj)
   info "Pushing a change to https://$GITLAB_HOSTNAME/rearahhal/spring-petclinic-config"
   tmp_dir=$(mktemp -d)
   pushd $tmp_dir
