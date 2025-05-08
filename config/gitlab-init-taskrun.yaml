@@ -80,7 +80,7 @@ spec:
             print("Webhook configured.")
 
         # Create 'spring-petclinic'
-        petclinic_id = create_project("spring-petclinic", "https://github.com/rrahhal1/spring-petclinic-pac.git")
+        petclinic_id = create_project("spring-petclinic", "https://gitlab.com/rearahhal/spring-petclinic-pac.git")
         if petclinic_id:
           set_default_branch(petclinic_id, "cicd-demo")
           add_webhook(petclinic_id)
