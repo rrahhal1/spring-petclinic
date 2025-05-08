@@ -1,0 +1,35 @@
+global:
+  hosts:
+    domain: apps.ocb.blf.com
+    gitlab:
+      name: gitlab.apps.ocb.blf.com
+    https: false
+  edition: ce
+
+postgresql:
+  install: true
+
+redis:
+  install: true
+  master:
+    install: true
+  replica:
+    install: false
+
+nginx-ingress:
+  controller:
+    enabled: true
+    ingressClass: nginx
+
+prometheus:
+  install: false
+
+gitlab:
+  enabled: true
+  migrations:
+    # No initial root password secret; assume existing user handles auth
+    initialRootPassword: {}
+
+registry:
+  enabled: false
+
