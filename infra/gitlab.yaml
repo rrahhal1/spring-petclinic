@@ -1,0 +1,200 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    app: gitlab
+  name: gitlab
+---
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    description: Exposes the GitLab database server
+  name: gitlab-postgresql
+spec:
+  ports:
+    - name: postgresql
+      port: 5432
+      targetPort: 5432
+  selector:
+    app: gitlab
+    name: gitlab-postgresql
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gitlab-postgresql
+  labels:
+    app: gitlab
+    app.kubernetes.io/component: database
+    app.kubernetes.io/instance: gitlab
+    app.kubernetes.io/name: gitlab-postgresql
+    app.kubernetes.io/part-of: gitlab
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gitlab
+      name: gitlab-postgresql
+  template:
+    metadata:
+      labels:
+        app: gitlab
+        name: gitlab-postgresql
+    spec:
+      containers:
+        - name: postgresql
+          imagePullPolicy: Always
+          image: postgres:12
+          env:
+            - name: POSTGRES_USER
+              value: gitlab
+            - name: POSTGRES_PASSWORD
+              value: gitlab
+            - name: POSTGRES_DB
+              value: gitlab
+            - name: POSTGRESQL_MAX_CONNECTIONS
+              value: "100"
+          ports:
+            - containerPort: 5432
+          livenessProbe:
+            initialDelaySeconds: 30
+            tcpSocket:
+              port: 5432
+            timeoutSeconds: 1
+            failureThreshold: 10
+            periodSeconds: 20
+          readinessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -i
+                - -c
+                - psql -h 127.0.0.1 -U ${POSTGRES_USER} -q -d ${POSTGRES_DB} -c 'SELECT 1'
+          resources:
+            limits:
+              memory: 512Mi
+          volumeMounts:
+            - mountPath: /var/lib/postgresql/data
+              name: gitlab-postgresql-data
+      volumes:
+        - name: gitlab-postgresql-data
+          persistentVolumeClaim:
+            claimName: gitlab-postgresql-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    description: The GitLab server's HTTP port
+  name: gitlab
+spec:
+  ports:
+    - name: 8080-tcp
+      port: 8080
+      protocol: TCP
+      targetPort: 8080
+  selector:
+    app: gitlab
+    name: gitlab
+  sessionAffinity: None
+  type: ClusterIP
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  annotations:
+    description: Route for GitLab's HTTP service
+  name: gitlab
+spec:
+  to:
+    name: gitlab
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gitlab
+  labels:
+    app: gitlab
+    app.kubernetes.io/component: gitlab
+    app.kubernetes.io/instance: gitlab
+    app.kubernetes.io/name: gitlab
+    app.kubernetes.io/part-of: gitlab
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gitlab
+      name: gitlab
+  template:
+    metadata:
+      labels:
+        app: gitlab
+        name: gitlab
+    spec:
+      containers:
+        - name: gitlab
+          imagePullPolicy: Always
+          image: gitlab/gitlab-ce:latest
+          ports:
+            - containerPort: 8080
+              protocol: TCP
+          volumeMounts:
+            - mountPath: /var/opt/gitlab
+              name: gitlab-repositories
+            - mountPath: /etc/gitlab
+              name: gitlab-config
+          readinessProbe:
+            httpGet:
+              path: /users/sign_in
+              port: 8080
+              scheme: HTTP
+            initialDelaySeconds: 10
+            periodSeconds: 20
+            successThreshold: 1
+            timeoutSeconds: 1
+          livenessProbe:
+            httpGet:
+              path: /users/sign_in
+              port: 8080
+              scheme: HTTP
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+      serviceAccountName: gitlab
+      volumes:
+        - name: gitlab-repositories
+          persistentVolumeClaim:
+            claimName: gitlab-repositories
+        - configMap:
+            items:
+              - key: gitlab.rb
+                path: gitlab.rb
+            name: gitlab-config
+          name: gitlab-config
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: gitlab-repositories
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: gitlab-postgresql-data
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5G
