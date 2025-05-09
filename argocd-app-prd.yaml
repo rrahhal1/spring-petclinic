@@ -1,0 +1,17 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: prd-spring-petclinic
+spec:
+  destination:
+    namespace: prd
+    server: https://kubernetes.default.svc
+  project: spring-petclinic
+  source:
+    path: environments/prd
+    repoURL: https://github.com/rrahhal1/spring-petclinic-config
+    targetRevision: HEAD
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
