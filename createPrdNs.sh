@@ -171,7 +171,7 @@ tmp_dir=$(mktemp -d)
 pushd "$tmp_dir"
 
 # Clone the Git repository
-git clone "https://$GITEA_HOSTNAME/gitea/spring-petclinic"
+git clone "https://$GITLAB_HOSTNAME/rearahhal/spring-petclinic"
 cd spring-petclinic 
 
 # Set Git user info
@@ -532,7 +532,7 @@ EOF
   Demo is installed! Give it a few minutes to finish deployments and then:
 
   1) Go to spring-petclinic Git repository in Gitea:
-     https://$GITEA_HOSTNAME/gitea/spring-petclinic.git
+     https://$GITLAB_HOSTNAME/gitea/spring-petclinic.git
 
   2) Log into Gitea with username/password: gitea/openshift
 
@@ -545,7 +545,7 @@ EOF
 
   You can find further details at:
 
-  Gitea Git Server: https://$GITEA_HOSTNAME/explore/repos
+  Gitea Git Server: https://$GITLAB_HOSTNAME/explore/repos
   SonarQube: https://$(oc get route sonarqube -o template --template='{{.spec.host}}' -n $cicd_prj)
   Sonatype Nexus: https://$(oc get route nexus -o template --template='{{.spec.host}}' -n $cicd_prj)
   Argo CD:  http://$(oc get route argocd-server -o template --template='{{.spec.host}}' -n $cicd_prj)  [login with OpenShift credentials]
