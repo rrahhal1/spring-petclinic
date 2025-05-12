@@ -23,12 +23,24 @@ data:
         initialRootPassword: {}
       webservice:
         externalPort: 80
+        securityContext:
+          runAsUser: 1000
+          runAsGroup: 1000
+          fsGroup: 1000
       gitaly:
         persistence:
           storageClass: standard  # adjust to your PVC setup
+        securityContext:
+          runAsUser: 1000
+          runAsGroup: 1000
+          fsGroup: 1000
       gitlab-shell:
         service:
           externalPort: 22
+        securityContext:
+          runAsUser: 1000
+          runAsGroup: 1000
+          fsGroup: 1000
 
     redis:
       install: true
@@ -39,6 +51,10 @@ data:
 
     postgresql:
       install: true
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
 
     nginx-ingress:
       controller:
@@ -49,5 +65,3 @@ data:
 
     registry:
       enabled: false
-      
-    gitlab-url: "@gitlab-url@"
