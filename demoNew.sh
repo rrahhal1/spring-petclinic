@@ -140,15 +140,13 @@ command.install() {
       WEBHOOK_URL=$(oc get route pipelines-as-code-controller -n openshift-pipelines -o template --template="{{.spec.host}}")
   fi
 
-  oc get configmap gitlab-values -o jsonpath='{.data.values\.yaml}' | \
-  sed "s/@HOSTNAME/$GITLAB_HOSTNAME/g" | \
-  oc create -f - -n $cicd_prj
+  oc apply -f config/gitlab-values.yaml -n $cicd_prj
 
-# Wait for the deployment to complete
- oc rollout status deployment/gitlab -n $cicd_prj
+  # Wait for the deployment to complete
+  oc rollout status deployment/gitlab -n $cicd_prj
 
-# Replace @webhook-url@ and @gitlab-url@ in gitlab-init-taskrun.yaml from the ConfigMap and apply it
-oc get configmap gitlab-values -o jsonpath='{.data.gitlab-init-taskrun\.yaml}' | \
+  # Replace @webhook-url@ and @gitlab-url@ in gitlab-init-taskrun.yaml and apply it
+  oc get configmap gitlab-values -o jsonpath='{.data.gitlab-init-taskrun\.yaml}' | \
   sed "s#@webhook-url@#https://$WEBHOOK_URL#g" | \
   sed "s#@gitlab-url@#https://$GITLAB_HOSTNAME#g" | \
   oc create -f - -n $cicd_prj
