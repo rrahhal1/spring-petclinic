@@ -51,6 +51,9 @@ data:
 
     postgresql:
       install: true
+      persistence:
+        storageClass: standard  # Adjust as necessary
+        subPath: "gitlab_data"  # Ensure PostgreSQL data is stored in a subdirectory
       securityContext:
         runAsUser: 1000
         runAsGroup: 1000
