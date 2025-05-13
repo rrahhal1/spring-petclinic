@@ -1,16 +1,22 @@
+# 1. Service Account
 apiVersion: v1
 kind: ServiceAccount
 metadata:
+  name: gitlab
+  namespace: infra
   labels:
     app: gitlab
-  name: gitlab
+    component: gitlab
 ---
+# 2. PostgreSQL Service
 apiVersion: v1
 kind: Service
 metadata:
-  annotations:
-    description: Exposes the GitLab database server
   name: gitlab-postgresql
+  namespace: infra
+  labels:
+    app: gitlab
+    component: postgresql
 spec:
   ports:
     - name: postgresql
@@ -18,33 +24,31 @@ spec:
       targetPort: 5432
   selector:
     app: gitlab
-    name: gitlab-postgresql
+    component: postgresql
 ---
+# 3. PostgreSQL Deployment
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: gitlab-postgresql
+  namespace: infra
   labels:
     app: gitlab
-    app.kubernetes.io/component: database
-    app.kubernetes.io/instance: gitlab
-    app.kubernetes.io/name: gitlab-postgresql
-    app.kubernetes.io/part-of: gitlab
+    component: postgresql
 spec:
   replicas: 1
   selector:
     matchLabels:
       app: gitlab
-      name: gitlab-postgresql
+      component: postgresql
   template:
     metadata:
       labels:
         app: gitlab
-        name: gitlab-postgresql
+        component: postgresql
     spec:
       containers:
         - name: postgresql
-          imagePullPolicy: Always
           image: postgres:12
           env:
             - name: POSTGRES_USER
@@ -53,135 +57,245 @@ spec:
               value: gitlab
             - name: POSTGRES_DB
               value: gitlab
-            - name: POSTGRESQL_MAX_CONNECTIONS
-              value: "100"
           ports:
             - containerPort: 5432
-          livenessProbe:
-            initialDelaySeconds: 30
+          volumeMounts:
+            - name: gitlab-postgresql-data
+              mountPath: /var/lib/postgresql/data
+          readinessProbe:
             tcpSocket:
               port: 5432
-            timeoutSeconds: 1
-            failureThreshold: 10
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 5432
+            initialDelaySeconds: 10
             periodSeconds: 20
-          readinessProbe:
-            exec:
-              command:
-                - /bin/sh
-                - -i
-                - -c
-                - psql -h 127.0.0.1 -U ${POSTGRES_USER} -q -d ${POSTGRES_DB} -c 'SELECT 1'
-          resources:
-            limits:
-              memory: 512Mi
-          volumeMounts:
-            - mountPath: /var/lib/postgresql/data
-              name: gitlab-postgresql-data
-              subPath: "pgdata"  # This creates a subdirectory under /var/lib/postgresql/data
       volumes:
         - name: gitlab-postgresql-data
           persistentVolumeClaim:
             claimName: gitlab-postgresql-data
 ---
-apiVersion: v1
-kind: Service
-metadata:
-  annotations:
-    description: The GitLab server's HTTP port
-  name: gitlab
-spec:
-  ports:
-    - name: 8080-tcp
-      port: 8080
-      protocol: TCP
-      targetPort: 8080
-  selector:
-    app: gitlab
-    name: gitlab
-  sessionAffinity: None
-  type: ClusterIP
----
-apiVersion: route.openshift.io/v1
-kind: Route
-metadata:
-  annotations:
-    description: Route for GitLab's HTTP service
-  name: gitlab
-spec:
-  to:
-    name: gitlab
-  tls:
-    termination: edge
-    insecureEdgeTerminationPolicy: Redirect
----
+# 4. Redis Deployment
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: gitlab
+  name: gitlab-redis
+  namespace: infra
   labels:
     app: gitlab
-    app.kubernetes.io/component: gitlab
-    app.kubernetes.io/instance: gitlab
-    app.kubernetes.io/name: gitlab
-    app.kubernetes.io/part-of: gitlab
+    component: redis
 spec:
   replicas: 1
   selector:
     matchLabels:
       app: gitlab
-      name: gitlab
+      component: redis
   template:
     metadata:
       labels:
         app: gitlab
-        name: gitlab
+        component: redis
     spec:
       containers:
-        - name: gitlab
-          imagePullPolicy: Always
-          image: gitlab/gitlab-ce:latest
+        - name: redis
+          image: redis:6.2
           ports:
-            - containerPort: 8080
-              protocol: TCP
-          volumeMounts:
-            - mountPath: /var/opt/gitlab
-              name: gitlab-repositories
-            - mountPath: /etc/gitlab
-              name: gitlab-config
+            - containerPort: 6379
           readinessProbe:
-            httpGet:
-              path: /users/sign_in
-              port: 8080
-              scheme: HTTP
+            tcpSocket:
+              port: 6379
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 6379
             initialDelaySeconds: 10
             periodSeconds: 20
-            successThreshold: 1
-            timeoutSeconds: 1
-          livenessProbe:
-            httpGet:
-              path: /users/sign_in
-              port: 8080
-              scheme: HTTP
-            initialDelaySeconds: 30
-            periodSeconds: 10
-            successThreshold: 1
-            timeoutSeconds: 1
-      serviceAccountName: gitlab
-      volumes:
-        - name: gitlab-repositories
-          persistentVolumeClaim:
-            claimName: gitlab-repositories
-        - configMap:
-            items:
-              - key: gitlab.rb
-                path: gitlab.rb
-            name: gitlab-config
-          name: gitlab-config
 ---
+# 5. Redis Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: gitlab-redis
+  namespace: infra
+  labels:
+    app: gitlab
+    component: redis
+spec:
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: 6379
+  selector:
+    app: gitlab
+    component: redis
+---
+# 6. GitLab Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: gitlab
+  namespace: infra
+  labels:
+    app: gitlab
+    component: gitlab
+spec:
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+  selector:
+    app: gitlab
+    component: gitlab
+---
+# 7. GitLab Route
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: gitlab
+  namespace: infra
+  labels:
+    app: gitlab
+spec:
+  to:
+    kind: Service
+    name: gitlab
+  port:
+    targetPort: http
+---
+# 8. GitLab Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gitlab
+  namespace: infra
+  labels:
+    app: gitlab
+    component: gitlab
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gitlab
+      component: gitlab
+  template:
+    metadata:
+      labels:
+        app: gitlab
+        component: gitlab
+      annotations:
+        openshift.io/scc: gitlab-scc1  # Use appropriate SCC for your cluster
+    spec:
+      serviceAccountName: gitlab
+      
+      initContainers:
+        - name: permission-fixer
+          image: busybox
+          command:
+            - sh
+            - -c
+            - |
+              echo "Initial permissions:"
+              ls -la /etc/gitlab
+              echo "Ensuring correct ownership..."
+              sudo mkdir -p /etc/gitlab
+              sudo chown -R 1000:1000 /etc/gitlab
+              sudo chmod -R 775 /etc/gitlab
+              echo "Final permissions:"
+              ls -la /etc/gitlab
+              sudo touch /etc/gitlab/testfile && echo "Write test successful" || echo "Write test failed"
+          securityContext:
+            runAsUser: 0  # Temporarily run as root to change ownership
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: gitlab-etc
+              mountPath: /etc/gitlab
+            - name: gitlab-data
+              mountPath: /var/opt/gitlab
+      containers:
+        - name: gitlab
+          image: docker.io/gitlab/gitlab-ee:15.0.4-ee.0   #gitlab/gitlab-ce:latest
+          ports:
+            - containerPort: 8080
+          env:
+            - name: GITLAB_OMNIBUS_CONFIG
+              value: |
+                external_url 'http://gitlab-infra.apps.itz-j3yfm1.hub04-lb.techzone.ibm.com'
+                nginx['listen_port'] = 8080
+                gitlab_rails['redis_host'] = 'gitlab-redis'
+                gitlab_rails['db_host'] = 'gitlab-postgresql'
+                gitlab_rails['db_password'] = 'gitlab'
+                
+                # Disable OpenSSH
+                openssh['enable'] = false
+
+                # Disable SSH for GitLab shell
+                gitlab_rails['gitlab_shell_ssh_port'] = 0
+                gitlab_rails['gitlab_shell_ssh_path'] = '/bin/false'
+
+                # Optional: Disable SSH key generation
+                gitlab_rails['ssh_host_rsa_key'] = "/dev/null"
+                gitlab_rails['ssh_host_dss_key'] = "/dev/null"
+                gitlab_rails['ssh_host_ecdsa_key'] = "/dev/null"
+                gitlab_rails['ssh_host_ed25519_key'] = "/dev/null"
+          resources:
+            requests:
+              memory: "2Gi"
+              cpu: "500m"
+            limits:
+              memory: "4Gi"
+              cpu: "1"
+          volumeMounts:
+            - name: gitlab-etc
+              mountPath: /etc/gitlab
+            - name: gitlab-data
+              mountPath: /var/opt/gitlab
+            - name: ssh-override
+              mountPath: /etc/ssh   
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              add: ["CHOWN", "FOWNER", "DAC_OVERRIDE"]
+            runAsUser: 1000  # Ensure the container runs as a non-root user
+            fsGroup: 1000
+            fsGroupChangePolicy: "OnRootMismatch"
+      volumes:
+        - name: gitlab-etc
+          persistentVolumeClaim:
+            claimName: gitlab-etc
+        - name: gitlab-data
+          persistentVolumeClaim:
+            claimName: gitlab-data
+        - name: ssh-override
+          emptyDir: {}  # Writable in-memory directory to prevent SSH key creation errors
+---
+# 9. PVC for GitLab Config
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: gitlab-repositories
+  name: gitlab-etc
+  namespace: infra
+  labels:
+    app: gitlab
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+# 10. PVC for GitLab Data
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: gitlab-data
+  namespace: infra
+  labels:
+    app: gitlab
 spec:
   accessModes:
     - ReadWriteOnce
@@ -189,13 +303,18 @@ spec:
     requests:
       storage: 10Gi
 ---
+# 11. PVC for PostgreSQL
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: gitlab-postgresql-data
+  namespace: infra
+  labels:
+    app: gitlab
 spec:
   accessModes:
     - ReadWriteOnce
   resources:
     requests:
       storage: 5Gi
+
