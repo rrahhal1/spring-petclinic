@@ -1,0 +1,68 @@
+global:
+  hosts:
+    domain: "gitlab-infra.apps.itz-j3yfm1.hub04-lb.techzone.ibm.com"
+    gitlab:
+      name: "@HOSTNAME"
+    https: false
+  ingress:
+    enabled: false
+    tls:
+      enabled: false
+  edition: ce
+  nginx:
+    redirectHttpToHttps: false
+
+gitlab:
+  enabled: true
+  migrations:
+    initialRootPassword: {}
+  webservice:
+    externalPort: 80
+    securityContext:
+      runAsUser: 1000
+      runAsGroup: 1000
+      fsGroup: 1000
+    volumePermissions:
+      enabled: false
+  gitaly:
+    persistence:
+      storageClass: "standard"  # Adjust to your PVC setup
+    securityContext:
+      runAsUser: 1000
+      runAsGroup: 1000
+      fsGroup: 1000
+  gitlab-shell:
+    enabled: false
+    service:
+      externalPort: 0
+    securityContext:
+      runAsUser: 1000
+      runAsGroup: 1000
+      fsGroup: 1000
+
+redis:
+  install: true
+  master:
+    install: true
+  replica:
+    install: false
+
+postgresql:
+  install: false
+  persistence:
+    storageClass: "standard"  # Adjust as necessary
+    subPath: "gitlab_data"  # Ensure PostgreSQL data is stored in a subdirectory
+  securityContext:
+    runAsUser: 1000
+    runAsGroup: 1000
+    fsGroup: 1000
+
+nginx-ingress:
+  controller:
+    enabled: false
+
+prometheus:
+  install: false
+
+registry:
+  enabled: false
