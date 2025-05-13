@@ -2,69 +2,70 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: gitlab-values
+  namespace: infra
 data:
-  values.yaml: |
-    global:
-      hosts:
-        domain: apps-crc.testing
-        gitlab:
-          name: @HOSTNAME
-        https: false
-      ingress:
-        tls:
-          enabled: false
-      edition: ce
-      nginx:
-        redirectHttpToHttps: false
+  gitlab-values.yaml: |
+    # External URL for accessing GitLab
+    external_url: 'http://gitlab-infra.apps.itz-j3yfm1.hub04-lb.techzone.ibm.com'
 
-    gitlab:
-      enabled: true
-      migrations:
-        initialRootPassword: {}
-      webservice:
-        externalPort: 80
-        securityContext:
-          runAsUser: 1000
-          runAsGroup: 1000
-          fsGroup: 1000
-      gitaly:
-        persistence:
-          storageClass: standard  # adjust to your PVC setup
-        securityContext:
-          runAsUser: 1000
-          runAsGroup: 1000
-          fsGroup: 1000
-      gitlab-shell:
-        service:
-          externalPort: 22
-        securityContext:
-          runAsUser: 1000
-          runAsGroup: 1000
-          fsGroup: 1000
+    # Nginx settings
+    external_url_gitlab: '@gitlab-url@'
+    webhook: '@webhook-url@'
 
-    redis:
-      install: true
-      master:
-        install: true
-      replica:
-        install: false
+    nginx:
+      enable: true
+      redirect_http_to_https: false
+      listen_https: false
 
-    postgresql:
-      install: true
-      persistence:
-        storageClass: standard  # Adjust as necessary
-        subPath: "gitlab_data"  # Ensure PostgreSQL data is stored in a subdirectory
-      securityContext:
+    # GitLab webservice settings
+    gitlab_rails:
+      webservice_external_port: 80
+      db_adapter: postgresql
+      db_host: gitlab-postgresql
+      db_port: 5432
+      db_username: gitlab
+      db_password: gitlab
+      db_database: gitlab
+      security_context:
         runAsUser: 1000
         runAsGroup: 1000
         fsGroup: 1000
 
-    nginx-ingress:
-      controller:
-        enabled: false
+    # Gitaly settings for persistence
+    gitaly:
+      persistence: true
+      storage_class: 'standard'
+      security_context:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
 
-    prometheus:
-      install: false
-
-    registry:
+    # GitLab Shell settings
+    gitlab_shell:
       enabled: false
+      service:
+        externalPort: 0
+        securityContext:
+          runAsUser: 1000
+          runAsGroup: 1000
+          fsGroup: 1000
+
+    # Redis settings
+    redis:
+      enable: true
+      master:
+        enable: true
+      replica:
+        enable: false
+
+    # PostgreSQL settings
+    postgresql:
+      enable: false  # Using external DB
+
+    # Prometheus settings
+    prometheus:
+      enable: false
+
+    # Registry settings
+    registry:
+      enable: false
