@@ -246,6 +246,11 @@ oc secrets link default my-dockerhub-secret --for=pull -n infra
 # oc replace -f gitlab-values.yaml -n infra
   oc replace -f config/gitlab-values.yaml -n infra
 
+   
+
+  echo "Creating git-auth-secret in 'infra' namespace..."
+    oc create secret generic git-auth-secret  --from-literal=token=glpat-Aj7C8JvX5sc-Zdnf9Zuu -n infra
+
 
   GITLAB_HOSTNAME=$(oc get route gitlab -o template --template='{{.spec.host}}' -n infra)
   GITLAB_HOSTNAME_OLD='https://github.com'
@@ -270,24 +275,13 @@ oc secrets link default my-dockerhub-secret --for=pull -n infra
 
 
 
-#  oc get configmap gitlab-values -n infra -o jsonpath='{.data.gitlab-values\.yaml}'
-#   sed "s#@webhook-url@#https://$WEBHOOK_URL#g" | \
-#    sed "s#@gitlab-url@#https://$GITLAB_HOSTNAME#g" | \
-#    sed '/^[[:space:]]*namespace:/d' | \
-#   oc create -f - -n $cicd_prj
 
-# oc delete configmap gitlab-values -n $cicd_prj --ignore-not-found=true
 
-# # Replace placeholders and apply the updated ConfigMap
-# oc get configmap gitlab-values -n infra -o jsonpath='{.data.gitlab-values\.yaml}' | \
-# sed "s#@webhook-url@#$WEBHOOK_URL#g; s#@gitlab-url@#$GITLAB_HOSTNAME#g" | \
-# sed '/^[[:space:]]*namespace:/d' | \
-# awk -v cicd_prj="$cicd_prj" 'BEGIN {print "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: gitlab-values\n  namespace: "cicd_prj"\ndata:\n  gitlab-values.yaml: |"} {print} END {print ""}' | \
-# oc apply -f - -n $cicd_prj
 
 
 if oc get configmap gitlab-values -n $cicd_prj >/dev/null 2>&1; then
     echo "ConfigMap gitlab-values exists, updating it..."
+    sed "s#@webhook-url@#https://$WEBHOOK_URL#g" config/gitlab-init-taskrun.yaml | sed "s#@gitlab-url@#https://$GITLAB_HOSTNAME#g" | \
     oc get configmap gitlab-values -n $cicd_prj -o jsonpath='{.data.gitlab-values\.yaml}' | \
     sed "s#@webhook-url@#$WEBHOOK_URL#g; s#@gitlab-url@#$GITLAB_HOSTNAME#g" | \
     sed '/^[[:space:]]*namespace:/d' | \
@@ -295,6 +289,7 @@ if oc get configmap gitlab-values -n $cicd_prj >/dev/null 2>&1; then
     oc apply -f - -n $cicd_prj
 else
     echo "ConfigMap gitlab-values does not exist, creating it..."
+    sed "s#@webhook-url@#https://$WEBHOOK_URL#g" config/gitlab-init-taskrun.yaml | sed "s#@gitlab-url@#https://$GITLAB_HOSTNAME#g" | \
     oc get configmap gitlab-values -n infra -o jsonpath='{.data.gitlab-values\.yaml}' | \
     sed "s#@webhook-url@#$WEBHOOK_URL#g; s#@gitlab-url@#$GITLAB_HOSTNAME#g" | \
     sed '/^[[:space:]]*namespace:/d' | \
@@ -303,8 +298,14 @@ else
 fi
 
 
-
   echo "after replacing url and hostname"
+
+  echo "Creating GitLab init TaskRun..."
+
+# Replace placeholders and create the TaskRun
+sed "s#@webhook-url@#https://$WEBHOOK_URL#g" config/gitlab-init-taskrun.yaml | \
+sed "s#@gitlab-url@#https://$GITLAB_HOSTNAME#g" | \
+oc create -f - -n $cicd_prj
    
 
   wait_seconds 20
