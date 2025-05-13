@@ -248,6 +248,7 @@ oc secrets link default my-dockerhub-secret --for=pull -n infra
 
 
   GITLAB_HOSTNAME=$(oc get route gitlab -o template --template='{{.spec.host}}' -n infra)
+  GITLAB_HOSTNAME_OLD='https://github.com'
 
   info "Initializing git repository in Gitea and configuring webhooks"
   WEBHOOK_URL=$(oc get route pipelines-as-code-controller -n pipelines-as-code -o template --template="{{.spec.host}}"  --ignore-not-found)
@@ -275,11 +276,32 @@ oc secrets link default my-dockerhub-secret --for=pull -n infra
 #    sed '/^[[:space:]]*namespace:/d' | \
 #   oc create -f - -n $cicd_prj
 
-  oc get configmap gitlab-values -n infra -o jsonpath='{.data.gitlab-values\.yaml}' | \
-sed "s#@webhook-url@#$WEBHOOK_URL#g; s#@gitlab-url@#$GITLAB_HOSTNAME#g" | \
-sed '/^[[:space:]]*namespace:/d' | \
-awk 'BEGIN {print "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: gitlab-values\n  namespace: '$cicd_prj'\ndata:\n  gitlab-values.yaml: |"} {print} END {print ""}' | \
-oc create -f - -n $cicd_prj
+# oc delete configmap gitlab-values -n $cicd_prj --ignore-not-found=true
+
+# # Replace placeholders and apply the updated ConfigMap
+# oc get configmap gitlab-values -n infra -o jsonpath='{.data.gitlab-values\.yaml}' | \
+# sed "s#@webhook-url@#$WEBHOOK_URL#g; s#@gitlab-url@#$GITLAB_HOSTNAME#g" | \
+# sed '/^[[:space:]]*namespace:/d' | \
+# awk -v cicd_prj="$cicd_prj" 'BEGIN {print "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: gitlab-values\n  namespace: "cicd_prj"\ndata:\n  gitlab-values.yaml: |"} {print} END {print ""}' | \
+# oc apply -f - -n $cicd_prj
+
+
+if oc get configmap gitlab-values -n $cicd_prj >/dev/null 2>&1; then
+    echo "ConfigMap gitlab-values exists, updating it..."
+    oc get configmap gitlab-values -n $cicd_prj -o jsonpath='{.data.gitlab-values\.yaml}' | \
+    sed "s#@webhook-url@#$WEBHOOK_URL#g; s#@gitlab-url@#$GITLAB_HOSTNAME#g" | \
+    sed '/^[[:space:]]*namespace:/d' | \
+    awk -v cicd_prj="$cicd_prj" 'BEGIN {print "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: gitlab-values\n  namespace: "cicd_prj"\ndata:\n  gitlab-values.yaml: |"} {print} END {print ""}' | \
+    oc apply -f - -n $cicd_prj
+else
+    echo "ConfigMap gitlab-values does not exist, creating it..."
+    oc get configmap gitlab-values -n infra -o jsonpath='{.data.gitlab-values\.yaml}' | \
+    sed "s#@webhook-url@#$WEBHOOK_URL#g; s#@gitlab-url@#$GITLAB_HOSTNAME#g" | \
+    sed '/^[[:space:]]*namespace:/d' | \
+    awk -v cicd_prj="$cicd_prj" 'BEGIN {print "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: gitlab-values\n  namespace: "cicd_prj"\ndata:\n  gitlab-values.yaml: |"} {print} END {print ""}' | \
+    oc create -f - -n $cicd_prj
+fi
+
 
 
   echo "after replacing url and hostname"
@@ -296,7 +318,9 @@ oc create -f - -n $cicd_prj
   echo "Waiting for source code to be imported to Gitea..."
   while true; 
   do
-    result=$(curl --write-out '%{response_code}' --head --silent --output /dev/null https://$GITLAB_HOSTNAME/rearahhal/spring-petclinic)
+      echo "The old           URL is: $GITLAB_HOSTNAME_OLD"
+
+    result=$(curl --write-out '%{response_code}' --head --silent --output /dev/null $GITLAB_HOSTNAME_OLD/rrahhal1/spring-petclinic)
     if [ "$result" == "200" ]; then
 	    break
     fi
@@ -308,7 +332,12 @@ oc create -f - -n $cicd_prj
   info "Updating pipelinerun values for the demo environment"
   tmp_dir=$(mktemp -d)
   pushd $tmp_dir
-  git clone https://$GITLAB_HOSTNAME/rearahhal/spring-petclinic 
+
+    echo "The old URL is: $GITLAB_HOSTNAME_OLD"
+
+
+  git clone $GITLAB_HOSTNAME_OLD/rrahhal1/spring-petclinic 
+  echo "after clone"
   cd spring-petclinic 
   git config user.email "openshift-pipelines@redhat.com"
   git config user.name "openshift-pipelines"
